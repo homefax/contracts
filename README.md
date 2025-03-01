@@ -30,11 +30,15 @@ This directory contains the smart contracts for the HomeFax platform, a blockcha
    # or
    yarn install
    ```
-4. Create a `.env` file based on `.env.example`:
+4. Install required Hardhat toolbox dependencies:
+   ```bash
+   npm install --save-dev --legacy-peer-deps "@nomicfoundation/hardhat-chai-matchers@^2.0.0" "@nomicfoundation/hardhat-ethers@^3.0.0" "@nomicfoundation/hardhat-ignition-ethers@^0.15.0" "@nomicfoundation/hardhat-network-helpers@^1.0.0" "@nomicfoundation/hardhat-verify@^2.0.0" "@typechain/ethers-v6@^0.5.0" "@typechain/hardhat@^9.0.0" "@types/chai@^4.2.0" "@types/mocha@>=9.1.0" "chai@^4.2.0" "hardhat-gas-reporter@^1.0.8" "solidity-coverage@^0.8.1" "typechain@^8.3.0" "@nomicfoundation/hardhat-ignition@^0.15.10" "@nomicfoundation/ignition-core@^0.15.10"
+   ```
+5. Create a `.env` file based on `.env.example`:
    ```bash
    cp .env.example .env
    ```
-5. Update the environment variables in the `.env` file as needed
+6. Update the environment variables in the `.env` file as needed
 
 ### Compiling Contracts
 
@@ -88,15 +92,24 @@ npx hardhat run scripts/deploy.ts --network base
 
 ```
 contracts/
-├── contracts/          # Smart contracts
-│   └── HomeFax.sol     # Main HomeFax contract
-├── scripts/            # Deployment and utility scripts
-│   └── deploy.ts       # Deployment script
-├── test/               # Tests
-│   └── HomeFax.test.ts # Tests for HomeFax contract
-├── .env.example        # Example environment variables
-├── hardhat.config.ts   # Hardhat configuration
-└── package.json        # Dependencies and scripts
+├── contracts/              # Smart contracts
+│   ├── HomeFax.sol         # Main HomeFax contract
+│   ├── HomeFaxDAO.sol      # DAO governance contract
+│   └── Lock.sol            # Example contract
+├── scripts/                # Deployment and utility scripts
+│   ├── deploy.ts           # Deployment script for HomeFax
+│   ├── deploy-dao.ts       # Deployment script for HomeFaxDAO
+│   └── generate-proposal-templates.ts # Utility for DAO proposals
+├── test/                   # Tests
+│   ├── HomeFax.test.ts     # Tests for HomeFax contract
+│   ├── HomeFaxDAO.test.ts  # Tests for HomeFaxDAO contract
+│   └── Lock.ts             # Tests for Lock contract
+├── ignition/               # Hardhat Ignition deployment modules
+│   └── modules/            # Ignition modules
+│       └── Lock.ts         # Lock deployment module
+├── .env.example            # Example environment variables
+├── hardhat.config.ts       # Hardhat configuration
+└── package.json            # Dependencies and scripts
 ```
 
 ## Smart Contracts
@@ -109,6 +122,20 @@ The main contract for the HomeFax platform. It provides functionality for:
 - Creating and managing property reports
 - Purchasing access to reports
 - Verifying properties and reports
+- Access control for authorized users
+
+### HomeFaxDAO.sol
+
+The governance contract for the HomeFax platform. It implements a DAO (Decentralized Autonomous Organization) for:
+
+- Decentralized governance of the HomeFax platform
+- Proposal creation and voting
+- Execution of approved proposals
+- Updating HomeFax contract parameters through governance
+
+### Lock.sol
+
+An example contract used for testing and demonstration purposes.
 
 ## Security
 
@@ -121,9 +148,14 @@ The contracts use several security features:
 
 ## Deployment Addresses
 
+### Hardhat Network (Local)
+
+- HomeFax: `0x5FbDB2315678afecb367f032d93F642f64180aa3`
+
 ### Base Goerli (Testnet)
 
-- HomeFax: `0x0000000000000000000000000000000000000000` (placeholder)
+- HomeFax: Deployment in progress (Base Goerli RPC endpoints experiencing issues)
+- Note: For Base Goerli deployments, it's recommended to use a dedicated API key from providers like Alchemy, Infura, or QuickNode for more reliable access.
 
 ### Base Mainnet
 
