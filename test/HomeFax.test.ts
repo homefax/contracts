@@ -32,6 +32,9 @@ describe("HomeFax", function () {
     const HomeFaxFactory = await ethers.getContractFactory("HomeFax");
     homeFax = await HomeFaxFactory.deploy();
 
+    // Authorize user1 to interact with the contract
+    await homeFax.connect(owner).authorizeUser(user1.address);
+
     // Create a property
     const createPropertyTx = await homeFax
       .connect(user1)
@@ -88,7 +91,7 @@ describe("HomeFax", function () {
     it("Should fail when non-owner tries to verify a property", async function () {
       await expect(
         homeFax.connect(user2).verifyProperty(propertyId)
-      ).to.be.revertedWithCustomError(homeFax, "OwnableUnauthorizedAccount");
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
@@ -107,6 +110,9 @@ describe("HomeFax", function () {
 
       // Get the report ID from the event
       reportId = BigInt(1); // Assuming this is the first report
+
+      // Authorize user2 to interact with the contract
+      await homeFax.connect(owner).authorizeUser(user2.address);
     });
 
     it("Should create a report correctly", async function () {
