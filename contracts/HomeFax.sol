@@ -9,7 +9,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 /**
  * @title HomeFax
  * @dev A contract for storing and verifying property records on the blockchain
- * with access control to ensure only HomeFax application users can access it
+ * with access control to ensure only HomeFax application users can access it.
+ * This contract is designed to be owned by the HomeFaxDAO timelock controller.
  */
 contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
     using Counters for Counters.Counter;
@@ -46,6 +47,13 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         uint256 createdAt;
         bool isVerified;
     }
+
+    // Configurable settings (can be modified through DAO governance)
+    uint256 public daoSharePercentage = 20; // 20% for the DAO
+    uint256 public authorSharePercentage = 40; // 40% for the author
+    uint256 public ownerSharePercentage = 40; // 40% for the owner
+    uint256 public minimumReportPrice = 0.01 ether; // Minimum price for a report
+    bool public verificationRequired = false; // Whether reports require verification before purchase
 
     // Mappings
     mapping(uint256 => Property) private _properties;
@@ -285,6 +293,9 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         address owner,
         uint256 price
     ) external propertyExists(propertyId) onlyAuthorized returns (uint256) {
+        // Enforce minimum report price
+        require(price >= minimumReportPrice, "Price below minimum");
+
         _reportIds.increment();
         uint256 reportId = _reportIds.current();
 
@@ -334,12 +345,17 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
             "Report already purchased"
         );
 
+        // Check if verification is required
+        if (verificationRequired) {
+            require(report.isVerified, "Report is not verified");
+        }
+
         _reportPurchases[msg.sender][reportId] = true;
 
-        // Calculate payment distribution
-        uint256 daoShare = (msg.value * 20) / 100; // 20% for the DAO
-        uint256 authorShare = (msg.value * 40) / 100; // 40% for the author
-        uint256 ownerShare = msg.value - daoShare - authorShare; // 40% for the owner
+        // Calculate payment distribution using configurable percentages
+        uint256 daoShare = (msg.value * daoSharePercentage) / 100;
+        uint256 authorShare = (msg.value * authorSharePercentage) / 100;
+        uint256 ownerShare = msg.value - daoShare - authorShare;
 
         // Transfer payment to DAO (contract owner)
         (bool daoSuccess, ) = payable(owner()).call{value: daoShare}("");
@@ -459,5 +475,49 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         );
 
         return _reports[reportId].reportHash;
+    }
+
+    /**
+     * @dev Updates the payment distribution percentages
+     * @param _daoSharePercentage Percentage for the DAO
+     * @param _authorSharePercentage Percentage for the author
+     * @param _ownerSharePercentage Percentage for the owner
+     */
+    function updatePaymentDistribution(
+        uint256 _daoSharePercentage,
+        uint256 _authorSharePercentage,
+        uint256 _ownerSharePercentage
+    ) external onlyOwner {
+        require(
+            _daoSharePercentage +
+                _authorSharePercentage +
+                _ownerSharePercentage ==
+                100,
+            "Percentages must add up to 100"
+        );
+
+        daoSharePercentage = _daoSharePercentage;
+        authorSharePercentage = _authorSharePercentage;
+        ownerSharePercentage = _ownerSharePercentage;
+    }
+
+    /**
+     * @dev Updates the minimum report price
+     * @param _minimumReportPrice New minimum price for reports
+     */
+    function updateMinimumReportPrice(
+        uint256 _minimumReportPrice
+    ) external onlyOwner {
+        minimumReportPrice = _minimumReportPrice;
+    }
+
+    /**
+     * @dev Updates whether verification is required for reports
+     * @param _verificationRequired Whether verification is required
+     */
+    function updateVerificationRequired(
+        bool _verificationRequired
+    ) external onlyOwner {
+        verificationRequired = _verificationRequired;
     }
 }
