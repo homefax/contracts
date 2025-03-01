@@ -98,14 +98,16 @@ describe("HomeFax", function () {
   describe("Report Management", function () {
     beforeEach(async function () {
       // Create a report
-      const createReportTx = await homeFax
-        .connect(user1)
-        .createReport(
-          propertyId,
-          reportData.type,
-          reportData.hash,
-          reportData.price
-        );
+      // Using 'as any' to bypass TypeScript type checking since the contract has changed
+      // but the TypeScript types haven't been regenerated yet
+      const createReportTx = await (homeFax.connect(user1) as any).createReport(
+        propertyId,
+        reportData.type,
+        reportData.hash,
+        user1.address, // author (home inspector)
+        user1.address, // owner (user who paid for inspection)
+        reportData.price
+      );
       const receipt = await createReportTx.wait();
 
       // Get the report ID from the event
@@ -116,12 +118,14 @@ describe("HomeFax", function () {
     });
 
     it("Should create a report correctly", async function () {
-      const report = await homeFax.getReport(reportId);
+      // Using 'as any' to bypass TypeScript type checking
+      const report = (await homeFax.getReport(reportId)) as any;
 
       expect(report.propertyId).to.equal(propertyId);
       expect(report.reportType).to.equal(reportData.type);
       expect(report.reportHash).to.equal(reportData.hash);
-      expect(report.creator).to.equal(user1.address);
+      expect(report.author).to.equal(user1.address);
+      expect(report.owner).to.equal(user1.address);
       expect(report.price).to.equal(reportData.price);
       expect(report.isVerified).to.be.false;
     });
@@ -182,14 +186,15 @@ describe("HomeFax", function () {
 
     it("Should return property reports correctly", async function () {
       // Create a report first
-      await homeFax
-        .connect(user1)
-        .createReport(
-          propertyId,
-          reportData.type,
-          reportData.hash,
-          reportData.price
-        );
+      // Using 'as any' to bypass TypeScript type checking
+      await (homeFax.connect(user1) as any).createReport(
+        propertyId,
+        reportData.type,
+        reportData.hash,
+        user1.address, // author (home inspector)
+        user1.address, // owner (user who paid for inspection)
+        reportData.price
+      );
 
       const propertyReports = await homeFax.getPropertyReports(propertyId);
       expect(propertyReports.length).to.equal(1);
