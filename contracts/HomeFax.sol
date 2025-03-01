@@ -124,7 +124,7 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         _;
     }
 
-    constructor() Ownable(msg.sender) {
+    constructor() {
         // Setup roles
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(BACKEND_ROLE, msg.sender);
