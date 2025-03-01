@@ -40,7 +40,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         uint256 propertyId;
         string reportType; // "inspection", "title", "renovation", etc.
         string reportHash; // IPFS hash of the report content
-        address creator;
+        address author; // Home inspector who authored the report
+        address owner; // User who paid for the inspection
         uint256 price;
         uint256 createdAt;
         bool isVerified;
@@ -72,7 +73,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         uint256 indexed id,
         uint256 indexed propertyId,
         string reportType,
-        address indexed creator
+        address indexed author,
+        address owner
     );
     event ReportVerified(uint256 indexed id, uint256 indexed propertyId);
     event ReportPurchased(
@@ -105,10 +107,10 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         _;
     }
 
-    modifier onlyReportCreator(uint256 reportId) {
+    modifier onlyReportAuthor(uint256 reportId) {
         require(
-            _reports[reportId].creator == msg.sender,
-            "Not the report creator"
+            _reports[reportId].author == msg.sender,
+            "Not the report author"
         );
         _;
     }
@@ -270,6 +272,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
      * @param propertyId The ID of the property the report is for
      * @param reportType The type of report
      * @param reportHash The IPFS hash of the report content
+     * @param author The address of the home inspector who authored the report
+     * @param owner The address of the user who paid for the inspection
      * @param price The price to purchase access to this report
      * @return The ID of the newly created report
      */
@@ -277,6 +281,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         uint256 propertyId,
         string memory reportType,
         string memory reportHash,
+        address author,
+        address owner,
         uint256 price
     ) external propertyExists(propertyId) onlyAuthorized returns (uint256) {
         _reportIds.increment();
@@ -287,7 +293,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
             propertyId: propertyId,
             reportType: reportType,
             reportHash: reportHash,
-            creator: msg.sender,
+            author: author,
+            owner: owner,
             price: price,
             createdAt: block.timestamp,
             isVerified: false
@@ -296,7 +303,7 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
         _reports[reportId] = newReport;
         _propertyReports[propertyId].push(reportId);
 
-        emit ReportCreated(reportId, propertyId, reportType, msg.sender);
+        emit ReportCreated(reportId, propertyId, reportType, author, owner);
         return reportId;
     }
 
@@ -314,7 +321,7 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
     }
 
     /**
-     * @dev Purchases access to a report
+     * @dev Purchases access to a report with payment distribution
      * @param reportId The ID of the report to purchase
      */
     function purchaseReport(
@@ -329,9 +336,26 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
 
         _reportPurchases[msg.sender][reportId] = true;
 
-        // Transfer payment to report creator
-        (bool success, ) = payable(report.creator).call{value: msg.value}("");
-        require(success, "Transfer failed");
+        // Calculate payment distribution
+        uint256 daoShare = (msg.value * 20) / 100; // 20% for the DAO
+        uint256 authorShare = (msg.value * 40) / 100; // 40% for the author
+        uint256 ownerShare = msg.value - daoShare - authorShare; // 40% for the owner
+
+        // Transfer payment to DAO (contract owner)
+        (bool daoSuccess, ) = payable(owner()).call{value: daoShare}("");
+        require(daoSuccess, "DAO transfer failed");
+
+        // Transfer payment to report author
+        (bool authorSuccess, ) = payable(report.author).call{
+            value: authorShare
+        }("");
+        require(authorSuccess, "Author transfer failed");
+
+        // Transfer payment to report owner
+        (bool ownerSuccess, ) = payable(report.owner).call{value: ownerShare}(
+            ""
+        );
+        require(ownerSuccess, "Owner transfer failed");
 
         emit ReportPurchased(reportId, msg.sender, msg.value);
     }
@@ -427,7 +451,8 @@ contract HomeFax is Ownable, ReentrancyGuard, AccessControl {
     {
         require(
             _reportPurchases[msg.sender][reportId] ||
-                _reports[reportId].creator == msg.sender ||
+                _reports[reportId].author == msg.sender ||
+                _reports[reportId].owner == msg.sender ||
                 owner() == msg.sender ||
                 hasRole(BACKEND_ROLE, msg.sender),
             "No access to report content"
